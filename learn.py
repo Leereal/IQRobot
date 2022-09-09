@@ -1,20 +1,22 @@
-import socket
+import concurrent.futures
+import time
 
-print(b"GET / HTTPS/1.1\r\nHOST: google.com\r\n\r\n")
-target_host = "www.google.com"
-target_port = 80
+start = time.perf_counter()
 
-#create a socket object
-client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-#connect the client
-client.connect((target_host,target_port))
+def do_something(seconds):
+    print(f'Sleeping {seconds} second(s)...')
+    time.sleep(seconds)
+    return f'Done Sleeping...{seconds}'
 
-#send some data
-client.send(b"GET / HTTPS/1.1\r\nHOST: google.com\r\n\r\n")
 
-#receive some data
-response = client.recv(4096)
+with concurrent.futures.ProcessPoolExecutor() as executor:
+    secs = [5, 4, 3, 2, 1]
+    results = executor.map(do_something, secs)
 
-print(response.decode())
-client.close()
+    # for result in results:
+    #     print(result)
+
+finish = time.perf_counter()
+
+print(f'Finished in {round(finish-start, 2)} second(s)')

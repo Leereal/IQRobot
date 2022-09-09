@@ -1,5 +1,4 @@
 
-from fileinput import close
 import json
 import sys
 import time
@@ -8,8 +7,6 @@ from playsound import playsound
 from iqoptionapi.stable_api import IQ_Option
 import multiprocessing
 from talib.abstract import *
-import pandas
-from datetime import datetime, timedelta
 
 total_profit = 0
 curr_balance = 0
@@ -20,10 +17,10 @@ def start(account_type,risk_management,expiration,stake,symbol,timeframe):
     email = "jaeljayleen@gmail.com"
     password = "2018$1952"
 
-    # email = "pipsbulls@gmail.com"
-    # password = "mutabvuri$8"
+    # email = "agukamba@outlook.com"
+    # password = "ratinati12"
 
-    API = IQ_Option(email,password)
+    API = IQ_Option(email,password,account_type)
 
     if API.check_connect()==False:
         if(API.connect()):
@@ -103,13 +100,13 @@ def start(account_type,risk_management,expiration,stake,symbol,timeframe):
             return all
 
 
-    def openPositions():
-        """Return number of open positions"""
+    # def openPositions():
+    #     """Return number of open positions"""
 
-        # binary = API.get_positions("turbo-option")[1]['total'] /# Not woriking
-        digital = API.get_positions("digital-option")[1]['total']
+    #     # binary = API.get_positions("turbo-option")[1]['total'] /# Not woriking
+    #     digital = API.get_positions("digital-option")[1]['total']
 
-        return digital 
+    #     return digital 
 
     
     def trade(symbol,action,option):
@@ -118,7 +115,7 @@ def start(account_type,risk_management,expiration,stake,symbol,timeframe):
         start_time = time.time() # Execution starting time
 
         #Local Variables to use
-        open_positions  = openPositions()
+        open_positions  = 1
         stake           = calculateStake()
     
         #Check if there are running trades first
@@ -211,65 +208,87 @@ def start(account_type,risk_management,expiration,stake,symbol,timeframe):
         data = {'open': numpy.array([]), 'high': numpy.array([]), 'low': numpy.array([]), 'close': numpy.array([]), 'volume': numpy.array([]) }
         for x in list(candles):
             data['open'] = numpy.append(data['open'], candles[x]['open'])
-            data['high'] = numpy.append(data['high'], candles[x]['max'])
-            data['low'] = numpy.append(data['low'], candles[x]['min'])
-            data['close'] = numpy.append(data['close'], candles[x]['close'])
-            data['volume'] = numpy.append(data['volume'], candles[x]['volume'])
+            data['high'] = numpy.append(data['open'], candles[x]['max'])
+            data['low'] = numpy.append(data['open'], candles[x]['min'])
+            data['close'] = numpy.append(data['open'], candles[x]['close'])
+            data['volume'] = numpy.append(data['open'], candles[x]['volume'])
         return data
 
-# +|========================STRATEGY BEGIN=========================|+#
 
-    """Place a trade based on BB Rules rules"""
-     
-    maxdict = 280
 
-    call_wait = True
-    put_wait = True
+    # +|========================STRATEGY BEGIN=========================|+#
 
-    print(f"|+|==================== Aldrine Bollinger Band Strategy started on {symbol}==================|+|")
+    crossover_up = False
+    crossover_down = False
+    upper_bb_touch = False
+    lower_bb_touch = False
 
-    API.start_candles_stream(symbol,int(timeframe),maxdict)  
-    candles = API.get_realtime_candles(symbol, timeframe)	   
-    while True:            
-        try:  
-            data = getData(candles)                    
-            # Bollinger Band Calculations   
-            upperband, middleband, lowerband = BBANDS(data["close"]*100000, timeperiod=14, nbdevup=2.0, nbdevdn=2.0, matype=0)            
+    API.start_candles_stream(symbol,int(timeframe),280)
+    candles = API.get_realtime_candles(symbol, timeframe)	
+    while True:
+        try:
+            close_price = getClosePrices(symbol,timeframe)
+            data = getData(candles)  
+            upperband, middleband, lowerband = BBANDS(close_price*100000, timeperiod=14, nbdevup=2.0, nbdevdn=2.0, matype=0)
             high = upperband[-1]/100000
-            low = lowerband[-1]/100000  
-
-            # RSI Calculations
-            
-            rsi_value = RSI(data["close"], timeperiod=14)[-1]
-
-            # STOCH Calculations
-            slowk, slowd = STOCH(data["high"], data["low"], data["close"], fastk_period=13, slowk_period=3, slowk_matype=0, slowd_period=3, slowd_matype=0)
-            
-            #CCI Calculations
-            cci_value = CCI(data["high"], data["low"], data["close"], timeperiod=14)
-
+            low = lowerband[-1]/100000
+            integer = CDLHAMMER(1.1300, 1.1310, 1.1280, 1.1290)
+            # integer = CDLHAMMER(open, high, low, 1.1290)
         except KeyError:
             pass
+        else:  
+            pass
+            print(f"Integer:{integer}")
+        # print(candles)
+            # BB Touch Check
+            # if close[-1] >= high:
+            #     upper_bb_touch = True
+            #     lower_bb_touch = False
+            #     print (f"{symbol} UP BB Touch : True")
 
-        else:
-            # print(f"CCI = {cci_value[-1]} | SLOWK = {slowk[-1]} | SLOWD = {slowd[-1]}")
-            print(f"{symbol} , PUT:{put_wait} CALL: {call_wait}=> RSI = {rsi_value} | BB UPPER = {high} | BB LOWER =  {low} | PRICE = {data['close'][-1]}")
-            remaining_time=API.get_remaning(expiration)
-            curr_price = data["close"][-1]
-
-            # #Condition for a call
-            if remaining_time == 60 and rsi_value < 30 and curr_price < low  and slowk[-1] < 20 and cci_value[-1] < -100 and call_wait == True:                    
-                trade(symbol,"call",option)             
-                call_wait = False
-                put_wait = True
-
-                #Condition for a put
-            elif remaining_time == 60 and rsi_value > 70 and curr_price > high and slowk[-1] > 80 and cci_value[-1] > 100 and put_wait == True:
+            # elif close[-1] <= low:
+            #     upper_bb_touch = False
+            #     lower_bb_touch = True
+            #     print (f"{symbol} DOWN BB Touch : True")
+            # # Check Pin bar or hammer on heiken ashi 
+            # integer = CDLHAMMER(open, high, low, close)
+            # # Check AO change and enter           
+            # remaining_time=API.get_remaning(expiration)
+            # print(f"{symbol} , CROSS UP:{crossover_up} CROSS DOWN: {crossover_down}=> BB UPPER = {high} | BB LOWER =  {low} | PRICE = {close_price[-1]}")
+            # close = close_price
+            # # print(close_price)
+            # if ma8[-1] > ma14[-1] and ma8[-2] < ma14[-2]:
+            #     crossover_up = True
+            #     crossover_down = False
+            #     print (f"{symbol} Cross Up : True")
+                
+            # elif ma8[-1] < ma14[-1] and ma8[-2] > ma14[-2] :
+            #     crossover_down = True
+            #     crossover_up = False
+            #     print (f"{symbol} Cross Down : True")
             
-                trade(symbol,"put",option)             
-                call_wait = True
-                put_wait = False
+            # if close[-1] >= high:
+            #     upper_bb_touch = True
+            #     lower_bb_touch = False
+            #     print (f"{symbol} UP BB Touch : True")
 
+            # elif close[-1] <= low:
+            #     upper_bb_touch = False
+            #     lower_bb_touch = True
+            #     print (f"{symbol} DOWN BB Touch : True")
+            
+            # #Condition for a Call
+            # if close[-1] <= ma8[-1] and crossover_up == True and upper_bb_touch == True and remaining_time == 60:
+            #     print (f"{symbol} Signal Call")
+            #     trade(symbol,"call",option)
+            #     crossover_up = False
+            #     upper_bb_touch = False
+
+            # elif close[-1] >= ma8[-1] and crossover_down == True and lower_bb_touch == True and remaining_time == 60:
+            #     print (f"{symbol} Signal Put")
+            #     trade(symbol,"put",option) 
+            #     crossover_down = False
+            #     lower_bb_touch = False
 
 
 
@@ -277,16 +296,16 @@ def start(account_type,risk_management,expiration,stake,symbol,timeframe):
 if __name__ == '__main__':
     risk_management = {
     "maximum_risk_target":float(100000), #Balance you want to reach due to profit
-    "maximum_risk_":float(30),# Balance you want to reach due to loss
-    "stake_percentage" : float(33),
+    "maximum_risk_":float(0),# Balance you want to reach due to loss
+    "stake_percentage" : float(20),
     "risk_type" : str("flat"), # flat #martingale #compound_all #compund_profit_only #balance_percentage 
     "risk_percentage" : float(0),
     } 
-    account_type    = "PRACTICE" # / REAL / PRACTICE /TOURNAMENT /TOURNAMENT APRIL TOURNAMENT/ IQ LAUNCH /RAMADAN
+    account_type    = "TOURNAMENT" # / REAL / PRACTICE /TOURNAMENT /TOURNAMENT APRIL TOURNAMENT/ IQ LAUNCH /RAMADAN
     stake           = float(50)
     expiration      = int(1)
     timeframe       = int(60)
-    bb_period       = int(14) # BB Period
+    period          = int(14) # BB Period
     std             = float(2) #Standard deviation
     option          = "digital" 
 
@@ -296,11 +315,11 @@ if __name__ == '__main__':
     # start(account_type,risk_management,expiration,stake,"GBPJPY-OTC",timeframe)
     # start(account_type,risk_management,expiration,stake,"GBPUSD-OTC",timeframe)
     # start(account_type,risk_management,expiration,stake,"USDJPY-OTC",timeframe)
-    # start(account_type,risk_management,expiration,stake,"NZDUSD-OTC",timeframe)
+    # start(account_type,risk_management,expiration,stake,"USDCHF-OTC",timeframe)
 
-    symbols = ["EURUSD-OTC","EURJPY-OTC","EURGBP-OTC","GBPUSD-OTC","GBPJPY-OTC","USDINR-OTC","USDCHF-OTC","USDZAR-OTC","NZDUSD-OTC","USDXOF-OTC","USDSGD-OTC","USDHKD-OTC","AUDCAD-OTC"]
-    # symbols = ["EURUSD","EURJPY","EURGBP","AUDUSD","GBPUSD","GBPJPY","USDJPY","AUDJPY"]
-    for symbol in symbols:    
-        multiprocessing.Process(target=start, args = (account_type,risk_management,expiration,stake,symbol,timeframe)).start()
-
+    # symbols = ["EURUSD-OTC","EURJPY-OTC","EURGBP-OTC","GBPUSD-OTC","GBPJPY-OTC","USDJPY-OTC","USDCHF-OTC","NZDUSD-OTC"]
+    # symbols = ["EURUSD","EURJPY","EURGBP","AUDUSD","GBPUSD","GBPJPY","USDJPY"]
+    symbols = ["EURUSD-OTC"]
+for symbol in symbols:    
+    multiprocessing.Process(target=start, args = (account_type,risk_management,expiration,stake,symbol,timeframe)).start()
 

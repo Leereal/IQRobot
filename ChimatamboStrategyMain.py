@@ -10,17 +10,17 @@ from talib.abstract import *
 
 total_profit = 0
 curr_balance = 0
+payout = 0.90
 
-
-def start(account_type,risk_management,expiration,stake,symbol,timeframe):
+def start(account_type, risk_management, expiration, stake, symbol, timeframe,current_level,martingale_stake,lock,open_trade):
 
     email = "jaeljayleen@gmail.com"
-    password = "tambos@1992"
+    password = "2018$1952"
 
     # email = "agukamba@outlook.com"
     # password = "ratinati12"
 
-    API = IQ_Option(email,password)
+    API = IQ_Option(email,password,account_type)
 
     if API.check_connect()==False:
         if(API.connect()):
@@ -45,7 +45,7 @@ def start(account_type,risk_management,expiration,stake,symbol,timeframe):
     global curr_balance
     curr_balance = balance
 
-    #print(API.get_profile_ansyc()["balances"]) To check tournament IDs
+    # print(API.get_profile_ansyc()["balances"]) #To check tournament IDs
 
     #Print Balance
     print(f"Account Type: {account_type} | Account Balance : {balance}")
@@ -56,49 +56,71 @@ def start(account_type,risk_management,expiration,stake,symbol,timeframe):
         # flat #martingale #compound_all #compund_profit_only #balance_percentage
         account_balance = API.get_balance()
         if account_balance < 1:
-            sys.exit()
+            sys.exit()      
+       
 
-        #Check if account is not going to loss below target
-        if risk_percentage != 0 :
+        # Check if account is not going to loss below target
+        if risk_percentage != 0:
             global curr_balance
             if account_balance > curr_balance:
                 curr_balance = account_balance
                 print(curr_balance)
 
             elif account_balance < curr_balance and account_balance <= (((100-risk_percentage)/100)*curr_balance):
-                print(f"We are now losing {risk_percentage}% below of the amount we made or invested")
+                print(
+                    f"We are now losing {risk_percentage}% below of the amount we made or invested")
 
                 playsound("Audios/entry_fail.mp3")
                 sys.exit()
-                    
-        if account_balance >= daily_target :
+
+        if account_balance >= daily_target:
             print("Target reached")
             playsound("Audios/entry_fail.mp3")
             sys.exit()
 
-        elif account_balance <= daily_risk :
-            print("Loss reached") 
+        elif account_balance <= daily_risk:
+            print("Loss reached")
             playsound("Audios/entry_fail.mp3")
             sys.exit()
 
-        if risk_type       == 'flat':
+        if risk_type == 'flat':
             return stake
 
-        elif risk_type     == 'balance_percentage':            
-            balance_percentage_amount = round((stake_percentage / 100 * account_balance), 2 )
-            print (f"Balance Percentage Risk Type : {balance_percentage_amount}")
+        elif risk_type == 'balance_percentage':
+            balance_percentage_amount = round(
+                (stake_percentage / 100 * account_balance), 2)
+            print(
+                f"Balance Percentage Risk Type : {balance_percentage_amount}")
             if balance_percentage_amount > 20000:
                 return 20000
             elif balance_percentage_amount < 1:
                 return 1
             else:
-                return balance_percentage_amount 
+                return balance_percentage_amount
 
-        elif risk_type     == 'compound_all':
-            all = round(account_balance,2)
-            print (f"All In Risk Type : {all}")
+        elif risk_type == 'compound_all':
+            all = round(account_balance, 2)
+            print(f"All In Risk Type : {all}")
             return all
+        
+        elif risk_type     == 'martingale':
+            if current_level.value == 1:
+                with lock:
+                    martingale_stake.value = round((0.0154*account_balance),2)           
+                return martingale_stake.value
+            
+            #Calculate martingale here
+            else:
+                totalLastStakes = 0
+                new_stake = 0           
+                i = 1
+                while i <= current_level.value:     
+                    new_stake = (martingale_stake.value * i * payout + totalLastStakes) / payout
+                    totalLastStakes = totalLastStakes + new_stake
+                    i += 1                
 
+                print("Martingale Stake: ",round(new_stake,2))
+                return round(new_stake,2)
 
     def openPositions():
         """Return number of open positions"""
@@ -109,85 +131,108 @@ def start(account_type,risk_management,expiration,stake,symbol,timeframe):
         return digital 
 
     
-    def trade(symbol,action,option):
-        """Execute Trade for digital"""        
+    def trade(symbol, action, option):
+        """Execute Trade for digital"""
 
-        start_time = time.time() # Execution starting time
+        start_time = time.time()  # Execution starting time
 
-        #Local Variables to use
-        open_positions  = openPositions()
-        stake           = calculateStake()
-    
-        #Check if there are running trades first
-        if open_positions > 0 :
+        # Local Variables to use
+        open_positions = openPositions()
+        stake = calculateStake()
+
+        # Check if there are running trades first
+        if open_positions > 0:
             print("Trade failed because there is a running position.")
 
         elif open_positions == 0:
-            
-            #Entry Success notification
-            def successEntryNotification(id,end_time):
-                print(f"ID: {id} Symbol: {symbol} - {action.title()} Order executed successfully")
-                print(f"Execution Time : {round((end_time-start_time),3)} secs")
+
+            # Entry Success notification
+            def successEntryNotification(id, end_time):
+                print(
+                    f"ID: {id} Symbol: {symbol} - {action.title()} Order executed successfully")
+                print(
+                    f"Execution Time : {round((end_time-start_time),3)} secs")
                 playsound('Audios/entry.mp3')
 
-            #Entry Fail notification
+            # Entry Fail notification
             def failedEntryNotification():
-                print("{symbol} Failed to execute maybe your balance low or asset is closed")
+                print(
+                    "{symbol} Failed to execute maybe your balance low or asset is closed")
                 playsound("Audios/entry_fail.mp3")
-                time.sleep(60*4)
+                with lock:
+                        open_trade.value = False
+                time.sleep(60*2)
 
-            #DIGITAL TRADING
-            if option == "digital" :
-                check,id = API.buy_digital_spot(symbol,stake,action,expiration) # Enter
-                end_time = time.time() # Execution finishing time
+            print(f"Open Value is . {open_trade.value} ")  
+            # DIGITAL TRADING
+            if option == "digital" and open_trade.value == False:
+                with lock:
+                    open_trade.value = True   
+                    check, id = API.buy_digital_spot(
+                        symbol, stake, action, expiration)  # Enter
+                    end_time = time.time()  # Execution finishing time                
 
-                if check == True :
-                    successEntryNotification(id,end_time)
-                    watchTrade(id,symbol,stake) #Currently only for digital available
-                else:
-                    failedEntryNotification()                
-
-            #BINARY TRADING
-            elif option == "binary" :
-                check,id = API.buy(stake,symbol,action,expiration) # Enter
-                end_time = time.time() # Execution finishing time
-
-                if check == True :
-                    successEntryNotification(id,end_time)                    
+                if check == True:                 
+                    successEntryNotification(id, end_time)
+                    # Currently only for digital available
+                    watchTrade(id, symbol, stake)
                 else:
                     failedEntryNotification()
-    
 
-    def watchTrade(id,symbol,stake):
+            # BINARY TRADING
+            elif option == "binary" and open_trade.value == False:
+                with lock:
+                    open_trade.value = True                
+                    check, id = API.buy(stake, symbol, action, expiration)  # Enter
+                    end_time = time.time()  # Execution finishing time
+            
+
+                if check == True:
+                    successEntryNotification(id, end_time)
+                else:
+                    failedEntryNotification()
+                    with lock:
+                        open_trade.value = False                  
+            else:
+                print(f"Open Value is True. {symbol} not executable")                
+
+    def watchTrade(id, symbol, stake):
         """"Monitoring Opened position"""
 
         while True:
-            check,win = API.check_win_digital_v2(id)
-            if check == True:                  
-                break               
+            check, win = API.check_win_digital_v2(id)
+            if check == True:
+                break
 
         if win < 0:
-            global total_profit
+            global total_profit     
+            with lock:
+                current_level.value += 1          
 
-            #Lose Notification
-            total_profit = round((total_profit - stake),2)
+            # Lose Notification
+            total_profit = round((total_profit - stake), 2)
             win_result = f"\n{symbol} Won Profit is now $0 and loss -${stake}  => Total Profit = ${round(total_profit, 2)}"
-            with open('trade_results.txt','a') as f:                     
-                f.write(win_result)                
+            with open('trade_results.txt', 'a') as f:
+                f.write(win_result)
             print(f"{symbol} Lost")
             playsound('Audios/fail.mp3')
+            # time.sleep(60*3)
+            with lock:
+                open_trade.value = False           
 
-        else: 
-            #Win Notification                   
-            total_profit += round(win,2)
+        else:
+            with lock:
+                current_level.value = 1         
+            # Win Notification
+            total_profit += round(win, 2)
             win_result = f"\n{symbol} Won Profit is now ${round(win,2)} and loss $0 => Total Profit = ${total_profit}"
-            with open('trade_results.txt','a') as f:                       
+            with open('trade_results.txt', 'a') as f:
                 f.write(win_result)
             print(f"{symbol} Won")
-            playsound('Audios/success.mp3')     
-
-        time.sleep(60*3)  
-    
+            playsound('Audios/success.mp3')
+            # time.sleep(60)
+            with lock:
+                open_trade.value = False     
 
     #+|========================CANDLES FUNCTIONS=========================|+#
     def getClosePrices(symbol,timeframe):
@@ -237,6 +282,7 @@ def start(account_type,risk_management,expiration,stake,symbol,timeframe):
         else:                
             remaining_time=API.get_remaning(expiration)
             print(f"{symbol} , CROSS UP:{crossover_up} CROSS DOWN: {crossover_down}=> BB UPPER = {high} | BB LOWER =  {low} | PRICE = {close_price[-1]}")
+            print(f"SYMBOL : {symbol} | Current Level: {current_level.value} | Current Martingale: {martingale_stake.value} | Open Trade: {open_trade.value}")
             close = close_price
             # print(close_price)
             if ma8[-1] > ma14[-1] and ma8[-2] < ma14[-2]:
@@ -262,13 +308,13 @@ def start(account_type,risk_management,expiration,stake,symbol,timeframe):
             #Condition for a Call
             if close[-1] <= ma8[-1] and crossover_up == True and upper_bb_touch == True and remaining_time == 60:
                 print (f"{symbol} Signal Call")
-                trade(symbol,"put",option)
+                trade(symbol,"call",option)
                 crossover_up = False
                 upper_bb_touch = False
 
             elif close[-1] >= ma8[-1] and crossover_down == True and lower_bb_touch == True and remaining_time == 60:
                 print (f"{symbol} Signal Put")
-                trade(symbol,"call",option) 
+                trade(symbol,"put",option) 
                 crossover_down = False
                 lower_bb_touch = False
 
@@ -280,16 +326,20 @@ if __name__ == '__main__':
     "maximum_risk_target":float(100000), #Balance you want to reach due to profit
     "maximum_risk_":float(0),# Balance you want to reach due to loss
     "stake_percentage" : float(20),
-    "risk_type" : str("balance_percentage"), # flat #martingale #compound_all #compund_profit_only #balance_percentage 
+    "risk_type" : str("martingale"), # flat #martingale #compound_all #compund_profit_only #balance_percentage 
     "risk_percentage" : float(0),
     } 
     account_type    = "TOURNAMENT" # / REAL / PRACTICE /TOURNAMENT /TOURNAMENT APRIL TOURNAMENT/ IQ LAUNCH /RAMADAN
-    stake           = float(1)
+    stake           = float(50)
     expiration      = int(1)
     timeframe       = int(60)
     period          = int(14) # BB Period
     std             = float(2) #Standard deviation
     option          = "digital" 
+    current_level = multiprocessing.Value('i',1)
+    martingale_stake = multiprocessing.Value('d',1.0)
+    open_trade = multiprocessing.Value('i',False)
+    lock = multiprocessing.Lock()
 
     # start(account_type,risk_management,expiration,stake,"EURUSD-OTC",timeframe)
     # start(account_type,risk_management,expiration,stake,"EURJPY-OTC",timeframe)
@@ -299,8 +349,8 @@ if __name__ == '__main__':
     # start(account_type,risk_management,expiration,stake,"USDJPY-OTC",timeframe)
     # start(account_type,risk_management,expiration,stake,"USDCHF-OTC",timeframe)
 
-    symbols = ["EURUSD-OTC","EURJPY-OTC","EURGBP-OTC","GBPUSD-OTC","GBPJPY-OTC","USDJPY-OTC","USDCHF-OTC","NZDUSD-OTC"]
-    # symbols = ["EURUSD","EURJPY","EURGBP","AUDUSD","GBPUSD","GBPJPY","USDJPY"]
+    symbols = ["EURUSD-OTC","EURJPY-OTC","EURGBP-OTC","GBPUSD-OTC","GBPJPY-OTC","USDJPY-OTC","USDCHF-OTC","NZDUSD-OTC","AUDCAD-OTC","USDZAR-OTC","USDHKD-OTC","USDINR","USDSGD-OTC"]
+    # symbols = ["EURUSD"]
 for symbol in symbols:    
-    multiprocessing.Process(target=start, args = (account_type,risk_management,expiration,stake,symbol,timeframe)).start()
+    multiprocessing.Process(target=start, args = (account_type,risk_management,expiration,stake,symbol,timeframe,current_level ,martingale_stake,lock,open_trade)).start()
 

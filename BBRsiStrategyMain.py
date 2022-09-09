@@ -15,7 +15,7 @@ curr_balance = 0
 def start(account_type,risk_management,expiration,stake,symbol,timeframe):
 
     email = "jaeljayleen@gmail.com"
-    password = "tambos@1992"
+    password = "2018$1952"
 
     # email = "agukamba@outlook.com"
     # password = "ratinati12"
@@ -252,15 +252,15 @@ if __name__ == '__main__':
     risk_management = {
     "maximum_risk_target":float(100000), #Balance you want to reach due to profit
     "maximum_risk_":float(0),# Balance you want to reach due to loss
-    "stake_percentage" : float(33),
-    "risk_type" : str("balance_percentage"), # flat #martingale #compound_all #compund_profit_only #balance_percentage 
+    "stake_percentage" : float(10),
+    "risk_type" : str("flat"), # flat #martingale #compound_all #compund_profit_only #balance_percentage 
     "risk_percentage" : float(0),
     } 
-    account_type    = "PRACTICE" # / REAL / PRACTICE /TOURNAMENT /TOURNAMENT APRIL TOURNAMENT/ IQ LAUNCH /RAMADAN
-    stake           = float(1)
+    account_type    = "TOURNAMENT" # / REAL / PRACTICE /TOURNAMENT /TOURNAMENT APRIL TOURNAMENT/ IQ LAUNCH /RAMADAN
+    stake           = float(100)
     expiration      = int(1)
-    overbought      = int(80)
-    oversold        = int(20)
+    overbought      = int(77)
+    oversold        = int(23)
     timeframe       = int(5)
     option          = "digital" 
 
@@ -273,7 +273,8 @@ if __name__ == '__main__':
     # start(account_type,risk_management,expiration,stake,"USDCHF-OTC",timeframe)
 
     # symbols = ["EURUSD-OTC","EURJPY-OTC","EURGBP-OTC","GBPUSD-OTC","GBPJPY-OTC","USDJPY-OTC","USDCHF-OTC","USDZAR-OTC","NZDUSD-OTC","USDXOF-OTC","USDSGD-OTC"]
-    symbols = ["EURUSD","EURJPY","EURGBP","GBPUSD","GBPJPY","USDJPY","AUDUSD"]
+    # symbols = ["EURUSD","EURJPY","EURGBP","GBPJPY","USDJPY","AUDJPY","AUDCAD","USDCAD",]
+    symbols = ["EURUSD","EURJPY","EURGBP","GBPUSD","GBPJPY","USDJPY","USDCAD","AUDUSD","AUDJPY","AUDCAD"]
     # symbols = ["EURUSD","EURGBP","EURJPY"]
     # ]
 
